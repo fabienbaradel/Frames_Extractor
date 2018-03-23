@@ -2,7 +2,7 @@ import argparse
 import os
 import subprocess
 import time
-
+import sys
 
 def main(args):
     # Parameters from the args
@@ -29,6 +29,7 @@ def main(args):
             duration = time.time() - start
             op_time.update(duration, 1)
             print("{}/{} : {time.val:.3f} ({time.avg:.3f}) sec/video".format(i + 1, len(list_video_fn), time=op_time))
+            sys.stdout.flush()
             start = time.time()
         except:
             print("Impossible to extract frames for {}".format(video_fn))
