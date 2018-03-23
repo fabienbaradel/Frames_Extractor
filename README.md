@@ -33,7 +33,7 @@ avi ----> 1 ---> clip.mp4
 ```
              
 ## Example
-```python
+```shell
 python main.py --dir <path-to-you-dir> --height 320 --width 240 --fps 30 --extension mp4
 ```
 
