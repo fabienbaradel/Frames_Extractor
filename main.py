@@ -9,7 +9,15 @@ import re
 
 def main(args):
     # Parameters from the args
-    dir, h, w, fps, extension, do_extract_frames = args.dir, args.height, args.width, args.fps, args.extension, args.extract_frames
+    dir, h, w, fps, extension = args.dir, args.height, args.width, args.fps, args.extension
+
+    # avi dir
+    dir_split = dir.split('/')
+    avi_dir = dir_split[-1]
+    root_dir = '/'.join(dir_split[:-1])
+    new_avi_dir = "{}_{}x{}_{}".format(avi_dir, w, h, fps)
+    new_dir = os.path.join(root_dir, new_avi_dir)
+    os.makedirs(new_dir, exist_ok=True)
 
     # Get the video filenames
     list_video_fn = get_all_videos(dir, extension)
@@ -23,11 +31,7 @@ def main(args):
     for i, video_fn in enumerate(list_video_fn):
         try:
             # Rescale
-            video_fn_rescaled = rescale_video(video_fn, w, h, fps)
-
-            if do_extract_frames:
-                # Extract
-                extract_frames(video_fn_rescaled, w, h, fps)
+            rescale_video(video_fn, w, h, fps, dir, new_dir, extension)
 
             # Log
             duration = time.time() - start
@@ -36,7 +40,7 @@ def main(args):
             sys.stdout.flush()
             start = time.time()
         except:
-            print("Impossible to extract frames for {}".format(video_fn))
+            print("Impossible to rescale video for {}".format(video_fn))
             list_error_fn.append(video_fn)
 
     print("\nDone")
@@ -74,13 +78,18 @@ def get_duration(file):
     return float(output)
 
 
-def rescale_video(video_fn, w, h, fps):
+def rescale_video(video_fn, w, h, fps, dir, new_dir, extension):
     """ Rescale a video according to its new width, height an fps """
 
     # Output video_name
-    video_dir, video_name = '/'.join(video_fn.split('/')[:-1]), video_fn.split('/')[-1]
-    video_name_rescaled = video_name.split('.')[0] + '_{}x{}_{}.mp4'.format(w, h, fps)
-    video_fn_rescaled = os.path.join(video_dir, video_name_rescaled)
+    video_dir = video_fn.split(dir)[1]
+    video_dir = video_dir.split('/')
+    video_dir, video_name_rescaled = '/'.join(video_dir[:-1])[1:], video_dir[-1]
+
+    # Create the dir
+    video_dir_to_create = os.path.join(new_dir, video_dir)
+    os.makedirs(video_dir_to_create, exist_ok=True)
+    video_fn_rescaled = os.path.join(new_dir, video_dir, video_name_rescaled)
 
     # Run a subprocess using ffmepg
     subprocess.call('ffmpeg -i {video_input} -vf scale={w}:{h} -r {fps} -y {video_output} -loglevel panic'.format(
@@ -96,28 +105,11 @@ def rescale_video(video_fn, w, h, fps):
     duration_frames = int(duration_sec * fps)
 
     # Update the name of the file
-    video_name_rescaled_dur = video_name_rescaled.split('.')[0] + '_{}.mp4'.format(duration_frames)
-    video_fn_rescaled_dur = os.path.join(video_dir, video_name_rescaled_dur)
+    video_name_rescaled_dur = video_name_rescaled.split('.')[0] + '_{}.{}'.format(duration_frames, extension)
+    video_fn_rescaled_dur = os.path.join(new_dir, video_dir, video_name_rescaled_dur)
     os.rename(video_fn_rescaled, video_fn_rescaled_dur)
 
     return video_fn_rescaled
-
-
-def extract_frames(video_fn, w, h, fps):
-    # Create the dir for the frames
-    dir = '/'.join(video_fn.split('/')[:-1])
-    dir_frames = os.path.join(dir, 'frames_{}x{}_{}'.format(w, h, fps))
-
-    if not os.path.isdir(dir_frames):
-        os.makedirs(dir_frames)
-
-    # Extract frames
-    subprocess.call('ffmpeg -i {video} {dir_frames}/$filename%06d.jpg -loglevel panic'.format(video=video_fn,
-                                                                                              dir_frames=dir_frames
-                                                                                              ), shell=True)
-
-    # Remove the video
-    os.remove(video_fn)
 
 
 def get_all_videos(dir, extension='mp4'):
@@ -147,9 +139,6 @@ if __name__ == '__main__':
     parser.add_argument('--extension', metavar='E',
                         default='mp4',
                         help='Extension of the video files')
-
-    parser.add_argument('--extract-frames', dest='extract_frames', action='store_true',
-                        help='whether to extract frames (if yes we do not keep the video)')
 
     args = parser.parse_args()
 
